@@ -8,4 +8,4 @@ New features:
 \
 \
 Preview
-<img width="800" height="450" alt="v1-5" src="https://github.com/user-attachments/assets/ecdde890-571f-4a5e-bd37-8ed4c34cdd68" />
+<img width="800" height="450" alt="v1-5" src="https://github.com/user-attachments/assets/f8643cdf-31c6-4cfd-8ece-7250101fdd91" />
