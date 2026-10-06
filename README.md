@@ -1,4 +1,5 @@
 Current version: **v1.5**
+
 New features:
 - Bigger balls can 'eat' smaller balls
 - Obstacle can make balls bigger or smaller depending its size
