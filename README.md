@@ -1,2 +1,2 @@
 Preview
-<img width="1920" height="1080" alt="BallsBouncing" src="https://github.com/user-attachments/assets/019b6552-b9b4-4701-ad5a-cc810541c231" />
+<img width="800" height="450" alt="BallBounce3" src="https://github.com/user-attachments/assets/21db63e7-792d-48f2-80d2-c0e135150eb2" />
