@@ -5,10 +5,13 @@ from random import randint, uniform
 # Color list
 #---------------------------
 C_BLACK = (0, 0, 0)
-C_LIGHTGREY = (209, 209, 214)
+C_LIGHTGREY = (235, 235, 235)
+C_DARKGREY = (50, 50, 50)
 C_GREY = (96, 96, 96)
 C_WHITE = (255, 255, 255)
-C_RED = (255, 0, 0)
+C_RED = (250, 60, 75)
+C_GREEN = (0, 200, 150)
+C_BLUE = (150, 190, 255)
 #---------------------------
 
 pygame.init()
@@ -16,7 +19,7 @@ pygame.mixer.init()
 
 # GLobal variables
 # -----------------------------------------------------------------
-WIDTH = HEIGHT = 700
+WIDTH, HEIGHT = 800, 600
 SCREEN = pygame.display.set_mode((WIDTH, HEIGHT))
 CLOCK = pygame.time.Clock()
 
@@ -42,7 +45,7 @@ class Ball:
 
     def draw(self):
         if len(self.line_trail) > 1:
-            pygame.draw.lines(SCREEN, self.color, False, self.line_trail, 1)
+            pygame.draw.lines(SCREEN, C_LIGHTGREY, False, self.line_trail, 1)
 
         pygame.draw.circle(
             SCREEN,
@@ -51,19 +54,25 @@ class Ball:
             self.rad
         )
 
-    def update_position(self, obs_x, obs_y, obs_rad, max_ball_rad):
-        self.x_pos += (self.x_vel * self.rad) / max_ball_rad
-        self.y_pos += (self.y_vel * self.rad) / max_ball_rad
+    def update_position(self, obs_x, obs_y, obs_rad, spd_limit):
+        self.x_pos += (self.x_vel * self.rad) * spd_limit
+        self.y_pos += (self.y_vel * self.rad) * spd_limit
 
         # Check ball to wall bounce
-        if self.x_pos - self.rad <= 0 or self.x_pos + self.rad >= WIDTH:
-            self.x_vel *= - 1
-            self.color = C_LIGHTGREY
-
-        if self.y_pos - self.rad <= 0 or self.y_pos + self.rad >= HEIGHT:
-            self.y_vel *= - 1
-            self.color = C_LIGHTGREY
-        
+        if self.x_pos - self.rad <= 0:
+            self.x_pos = self.rad
+            self.x_vel = abs(self.x_vel) * 1
+        elif self.x_pos + self.rad >= WIDTH:
+            self.x_pos = WIDTH - self.rad
+            self.x_vel = - abs(self.x_vel) * 1
+            
+        if self.y_pos - self.rad <= 0:
+            self.y_pos = self.rad
+            self.y_vel = abs(self.y_vel) * 1
+        elif self.y_pos + self.rad >= HEIGHT:
+            self.y_pos = HEIGHT - self.rad
+            self.y_vel = - abs(self.y_vel) * 1
+            
         dist_x = self.x_pos - obs_x
         dist_y = self.y_pos - obs_y
 
@@ -82,37 +91,49 @@ class Ball:
                 self.x_vel -= 2 * refl_vel * nx
                 self.y_vel -= 2 * refl_vel * ny
 
-            if self.rad < 10:
-                self.rad += 1
+            bfr_rad = self.rad
+
+            if self.rad > 75:
+                self.rad *= 0.5
+                self.color = C_LIGHTGREY
             else:
-                self.rad += uniform(-20, 5)
+                self.rad += uniform(-2.5, 2.5)
+                if self.rad < bfr_rad:
+                    self.color = C_RED
+                else:
+                    self.color = C_GREEN
 
             OBSTACLE_HIT.play()
-            self.color = C_BLACK
 
         self.line_trail.append((self.x_pos, self.y_pos))
         if len(self.line_trail) > self.max_line_trail:
             self.line_trail.pop(0)
-        
 
 def main():
     run = True
 
     font_style = pygame.font.SysFont('Arial', 20, True)
 
-    obs_x, obs_y, obs_rad = (uniform(15, WIDTH)), (uniform(15, HEIGHT)), 5
+    obs_x, obs_y, obs_rad = (uniform(25, WIDTH)), (uniform(25, HEIGHT)), 5
     obstacle = Ball(obs_x, obs_y, obs_rad, 0, 0, C_GREY)
 
     balls = []
-    max_ball_rad = 10
-    num_of_balls = 50
-    spwn_xy = 25
 
-    for n in range(0, num_of_balls):
+    # Control variables & modifiers
+    # ------------------------------------------------------------------------------
+    num_of_balls = 100  # [ctrl] ~
+    max_ball_rad = 15   # [ctrl] ~
+
+    spawn_xy = 25       # [mod] limit ball spawn relative to the window
+    spd_limit = 0.75    # [mod] max speed  (higher = faster)
+    eat_div = 50        # [mod] max radius a ball can 'eat' (lower = more to eat)
+    # ------------------------------------------------------------------------------
+
+    for _ in range(0, num_of_balls):
         balls.append(
             Ball(
-                randint(spwn_xy, WIDTH - spwn_xy),  # x pos
-                randint(spwn_xy, HEIGHT - spwn_xy), # y pos
+                randint(spawn_xy, WIDTH - spawn_xy),  # x pos
+                randint(spawn_xy, HEIGHT - spawn_xy), # y pos
                 randint(5, max_ball_rad),   # radius
                 uniform(-0.7, 0.7),         # x vel
                 uniform(-0.7, 0.7),         # y vel
@@ -123,30 +144,30 @@ def main():
     while run:
         SCREEN.fill(C_WHITE)
 
-        if len(balls) == 1:
+        if len(balls) <= 1:
             SCREEN.fill(C_BLACK)
-            CLOCK.tick(1)
+            CLOCK.tick(30)
         else:
-            CLOCK.tick(480)
+            CLOCK.tick(120)
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 run = False
 
         obstacle.draw()
-       
-        for ball in balls:        
-            if ball.rad <= 1 or (ball.x_pos and ball.y_pos <= 0) or (ball.x_pos and ball.y_pos >= 700):
+
+        for ball in balls:
+            if ball.rad <= 1:
                 BALL_DISSAPEAR.play()
                 balls.remove(ball)
-                print(ball, "got eaten!")
-                print("Balls remaining: ", len(balls))
 
-            ball.update_position(obs_x, obs_y, obs_rad, max_ball_rad)
+            ball.update_position(obs_x, obs_y, obs_rad, spd_limit)
             ball.draw()
 
-            ball_rad_txt = font_style.render((f"{len(balls)}"), False, C_BLACK)
-            SCREEN.blit(ball_rad_txt, ((WIDTH / 2), (HEIGHT / 2)))
+            SCREEN.blit(
+                font_style.render((f"{len(balls)}"), False, C_BLACK),
+                ((WIDTH / 2), (HEIGHT / 2))
+            )
 
         # Check ball to ball bounce
         for i in  range(len(balls)):
@@ -173,11 +194,11 @@ def main():
                         b1.x_vel -= (push / b1.rad) * b_nx
                         b1.y_vel -= (push / b1.rad) * b_ny
                         b2.x_vel += (push / b2.rad) * b_nx
-                        b2.y_vel += (push / b2.rad) * b_ny            
+                        b2.y_vel += (push / b2.rad) * b_ny
 
-                    b1.color, b2.color = C_RED, C_RED
-                    b1.rad += (b1.rad - b2.rad) / 100 - 0.01
-                    b2.rad += (b2.rad - b1.rad) / 100 - 0.01
+                    b1.color, b2.color = C_BLUE, C_BLUE
+                    b1.rad += (b1.rad - b2.rad) / eat_div
+                    b2.rad += (b2.rad - b1.rad) / eat_div
 
         pygame.display.update()
 
