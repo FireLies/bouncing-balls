@@ -1,33 +1,28 @@
 import math
 import pygame
-from random import randint
+from random import randint, uniform
 
-# Mono color list
+# Color list
 #---------------------------
 C_BLACK = (0, 0, 0)
 C_LIGHTGREY = (209, 209, 214)
 C_GREY = (96, 96, 96)
 C_WHITE = (255, 255, 255)
+C_RED = (255, 0, 0)
 #---------------------------
-# Colorful color list
-RN_COLOR = [
-    (245, 30, 30), # red
-    (245, 55, 100), # magenta
-    (245, 120, 55), # orange
-    (220, 195, 50), # yellow
-    (145, 220, 30), # lime
-    (20, 210, 30), # green
-    (20, 215, 180), # mint
-    (15, 135, 215), # light blue
-    (15, 25, 220), # dark blue
-    (135, 15, 220) # purple
-]
 
 pygame.init()
+pygame.mixer.init()
 
-WIDTH, HEIGHT = 800, 600
+# GLobal variables
+# -----------------------------------------------------------------
+WIDTH = HEIGHT = 700
 SCREEN = pygame.display.set_mode((WIDTH, HEIGHT))
 CLOCK = pygame.time.Clock()
+
+BALL_DISSAPEAR = pygame.mixer.Sound("audio\\ball_dissapear.mp3")
+OBSTACLE_HIT = pygame.mixer.Sound("audio\\obstacle_hit.mp3")
+# -----------------------------------------------------------------
 
 pygame.display.set_caption("Bouncing Ball")
 
@@ -43,11 +38,11 @@ class Ball:
         self.y_vel = y_vel
 
         self.line_trail = []
-        self.max_line_trail = 250
+        self.max_line_trail = 150
 
     def draw(self):
         if len(self.line_trail) > 1:
-            pygame.draw.lines(SCREEN, C_LIGHTGREY, False, self.line_trail, 1)
+            pygame.draw.lines(SCREEN, self.color, False, self.line_trail, 1)
 
         pygame.draw.circle(
             SCREEN,
@@ -56,16 +51,18 @@ class Ball:
             self.rad
         )
 
-    def update_position(self, obs_x, obs_y, obs_rad):
-        self.x_pos += (self.x_vel * self.rad) / 10
-        self.y_pos += (self.y_vel * self.rad) / 10
+    def update_position(self, obs_x, obs_y, obs_rad, max_ball_rad):
+        self.x_pos += (self.x_vel * self.rad) / max_ball_rad
+        self.y_pos += (self.y_vel * self.rad) / max_ball_rad
 
         # Check ball to wall bounce
         if self.x_pos - self.rad <= 0 or self.x_pos + self.rad >= WIDTH:
             self.x_vel *= - 1
+            self.color = C_LIGHTGREY
 
         if self.y_pos - self.rad <= 0 or self.y_pos + self.rad >= HEIGHT:
             self.y_vel *= - 1
+            self.color = C_LIGHTGREY
         
         dist_x = self.x_pos - obs_x
         dist_y = self.y_pos - obs_y
@@ -85,6 +82,14 @@ class Ball:
                 self.x_vel -= 2 * refl_vel * nx
                 self.y_vel -= 2 * refl_vel * ny
 
+            if self.rad < 10:
+                self.rad += 1
+            else:
+                self.rad += uniform(-20, 5)
+
+            OBSTACLE_HIT.play()
+            self.color = C_BLACK
+
         self.line_trail.append((self.x_pos, self.y_pos))
         if len(self.line_trail) > self.max_line_trail:
             self.line_trail.pop(0)
@@ -93,32 +98,55 @@ class Ball:
 def main():
     run = True
 
-    obs_x, obs_y, obs_rad = (WIDTH / 2), (HEIGHT / 2), 40
+    font_style = pygame.font.SysFont('Arial', 20, True)
+
+    obs_x, obs_y, obs_rad = (uniform(15, WIDTH)), (uniform(15, HEIGHT)), 5
     obstacle = Ball(obs_x, obs_y, obs_rad, 0, 0, C_GREY)
 
-    balls = [
-        Ball(WIDTH / 2, HEIGHT / 2, 16, 0.51, 0.3, C_BLACK),
-        Ball(WIDTH / 2, HEIGHT / 2, 15, -0.44, 0.25, C_BLACK),
-        Ball(WIDTH / 2, HEIGHT / 2, 19, 0.24, 0.5, C_BLACK),
-        Ball(WIDTH / 2, HEIGHT / 2, 17, 0.3, -0.43, C_BLACK),
-        Ball(WIDTH / 2, HEIGHT / 2, 20, -0.42, -0.22, C_BLACK),
-        Ball(WIDTH / 2, HEIGHT / 2, 14, 0.62, -0.57, C_BLACK),
-        Ball(WIDTH / 2, HEIGHT / 2, 24, -0.35, 0.4, C_BLACK)
-    ]
+    balls = []
+    max_ball_rad = 10
+    num_of_balls = 50
+    spwn_xy = 25
+
+    for n in range(0, num_of_balls):
+        balls.append(
+            Ball(
+                randint(spwn_xy, WIDTH - spwn_xy),  # x pos
+                randint(spwn_xy, HEIGHT - spwn_xy), # y pos
+                randint(5, max_ball_rad),   # radius
+                uniform(-0.7, 0.7),         # x vel
+                uniform(-0.7, 0.7),         # y vel
+                C_BLACK                     # color
+            )
+        )
 
     while run:
-        CLOCK.tick(480)
         SCREEN.fill(C_WHITE)
+
+        if len(balls) == 1:
+            SCREEN.fill(C_BLACK)
+            CLOCK.tick(1)
+        else:
+            CLOCK.tick(480)
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 run = False
 
         obstacle.draw()
+       
+        for ball in balls:        
+            if ball.rad <= 1 or (ball.x_pos and ball.y_pos <= 0) or (ball.x_pos and ball.y_pos >= 700):
+                BALL_DISSAPEAR.play()
+                balls.remove(ball)
+                print(ball, "got eaten!")
+                print("Balls remaining: ", len(balls))
 
-        for ball in balls:
-            ball.update_position(obs_x, obs_y, obs_rad)
+            ball.update_position(obs_x, obs_y, obs_rad, max_ball_rad)
             ball.draw()
+
+            ball_rad_txt = font_style.render((f"{len(balls)}"), False, C_BLACK)
+            SCREEN.blit(ball_rad_txt, ((WIDTH / 2), (HEIGHT / 2)))
 
         # Check ball to ball bounce
         for i in  range(len(balls)):
@@ -147,7 +175,9 @@ def main():
                         b2.x_vel += (push / b2.rad) * b_nx
                         b2.y_vel += (push / b2.rad) * b_ny            
 
-                    b1.color, b2.color = RN_COLOR[randint(0, 9)], RN_COLOR[randint(0, 9)]
+                    b1.color, b2.color = C_RED, C_RED
+                    b1.rad += (b1.rad - b2.rad) / 100 - 0.01
+                    b2.rad += (b2.rad - b1.rad) / 100 - 0.01
 
         pygame.display.update()
 
